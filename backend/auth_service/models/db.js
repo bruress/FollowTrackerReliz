@@ -1,7 +1,7 @@
 // импортируем библиотеки
 // Pool - для связи с бд
 // dotenv - для чтения .env
-import {Pool} from "../node_modules/@types/pg";
+import {Pool} from "pg";
 import dotenv from "dotenv";
 
 // читаем .env
