@@ -24,9 +24,8 @@ export const registr = async (req, res) => {
     }
     // хэшируем пароль 10 солями
     const hashedPassword = await bcrypt.hash(password, 10);
-    // удалить потом * и заменить на id, name, email
     // создаем нового пользователя
-    const newUser = await pool.query("INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *", [username, email, hashedPassword]);
+    const newUser = await pool.query("INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email", [username, email, hashedPassword]);
     // генерируем jwt по айдишнику созданного пользователя
     const token = generateToken(newUser.rows[0].id);
     // отпарвляем токен браузеру (Set-Cookie) с текущими настройками и токеном и он возвращает его на протяжении 30 дней
