@@ -14,13 +14,13 @@ export const registr = async (req, res) => {
     const {username, email, password} = req.body;
     // если что-то пустое, то просим заполнить все
     if (!username || !email || !password) {
-        return res.status(400).json({message: "Please provide all required fields"});
+        return res.status(400).json({message: "Пожалуйста заполните все поля"});
     };
     // пользователь существует? (определяем по уникальному email)
     const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     // если он есть -> то уведомляем, что пользователь уже существует и дальнейшая регистрация бессмыслена, т.к. юзер уже есть
     if (userExists.rows.length > 0) {
-        return res.status(400).json({message: "User already exists"});
+        return res.status(400).json({message: "Пользователь уже существует"});
     }
     // хэшируем пароль 10 солями
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -43,13 +43,13 @@ export const login = async (req, res) => {
     const {password, email} = req.body;
     // если чего-то не ввели, то ошибка
     if (!password || !email) {
-        return res.status(400).json({message: "Please provide all required fields"});
+        return res.status(400).json({message: "Пожалуйста заполните все поля"});
     };
     // получаем пользователя
     const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     // такого пользователя не существуют
     if (user.rows.length === 0) {
-        return res.status(400).json({message: "User doesn't exists or invalid credentials"});
+        return res.status(400).json({message: "Пользователь не найден"});
     };
     // иначе сохраняем всю информацию о нем
     const userData = user.rows[0];
@@ -57,14 +57,14 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, userData.password);
     // если не совпадают -> пароль неправильный
     if (isMatch === false) {
-        return res.status(400).json({message: "Invalid password"});
+        return res.status(400).json({message: "Неверный пароль"});
     };
     // создаем опять токен
     const token = generateToken(userData.id);
     // сохраняем его в браузере
     res.cookie("token", token, cookieOptions)
 
-    res.status(200).json({message: "Success",
+    res.status(200).json({message: "Вход выполнен успешно",
         user:{ id: userData.id, username: userData.username, email: userData.email}
     })
 
@@ -82,5 +82,5 @@ export const me = (req, res) => {
 // res - мы вернем что-нибудь
 export const logout = (req, res) => {
     res.cookie("token", "", {...cookieOptions, maxAge: 1});    // затираем старый куки в текущие настройки, без вложения, и устанавливаем скрок жизни в 1мс
-    res.json({message: "Logged out succesfully"})
+    res.json({message: "Вы успешно вышли из системы"})
 }
