@@ -3,3 +3,4 @@ node_modules/
 .gitignore
 .env.production
 .env.development
+.env.local
