@@ -26,6 +26,15 @@ services:
       - "3001:3001"
     depends_on:
       - db
+  parser_service:
+    env_file:
+      - ./backend/parser_service/.env.production
+    container_name: parser_service
+    restart: always
+    build:
+      context: ./backend/parser_service
+    ports:
+      - "3003:3003"
   frontend:
     container_name: frontend
     env_file:
