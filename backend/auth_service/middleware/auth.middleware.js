@@ -1,31 +1,28 @@
-// импортируем библиотеки
-// jwt - токен юзера
-// pool - подключение к postgreSQL
 import jwt from 'jsonwebtoken'
 import pool from "../models/db.js";
+import { buildError, sendError } from "../utils/error.util.js";
 
-// защищающая функция, которая гарантиует, что текущий пользователь - это действительно он, по токену
+// проверяем jwt из cookie и подгружаем пользователя в req.user
 export const protect = async (req, res, next) => {
     try {
-        // запрашиваем токен
         const token = req.cookies.token;
-        // если нет, то пользователь не авторизован
         if (!token) {
-            return res.status(401).json({message: "Not authoried, token failed"});
+            return sendError(res, buildError("Пользователь не авторизован", "UNAUTHORIZED", 401), "Пользователь не авторизован", "UNAUTHORIZED");
         }
-        // если токен нашелся, то раскодируем токен
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        // проверяем есть ли такой пользователь в бд
         const user = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [decoded.id])
-        // если нет, то пользователь не зарегестрирован
+        // токен валиден, но пользователя уже нет в бд
         if (user.rows.length === 0 ) {
-            return res.status(401).json({message: "Not authoried, token failed"});
+            return sendError(res, buildError("Пользователь не авторизован", "UNAUTHORIZED", 401), "Пользователь не авторизован", "UNAUTHORIZED");
         }
-        // получаем пользователя
         req.user = user.rows[0];
-        // перенаправление к роутеру дальше с текущим пользователем
-        next();
+        return next();
     } catch (error) {
-        res.status(401).json({message: "Not authoried, token failed"})
+        return sendError(
+            res,
+            buildError("Пользователь не авторизован", "UNAUTHORIZED", 401),
+            "Пользователь не авторизован",
+            "UNAUTHORIZED",
+        );
     }
 }
