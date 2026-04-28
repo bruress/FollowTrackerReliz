@@ -11,7 +11,8 @@ class WallAnalytic {
     // [domen] - айди группы
     // [period] - объект диапазона {from, to}
     // return - массив необходимых данных
-    async getData(domainId, period) {
+    async getData(domainId, period, options={}) {
+        const includeComments = options.includeComments!==false;
         // нижняя граница в unix
         const start = Math.floor(period.from.getTime() / 1000);
         // получаем посты
@@ -32,10 +33,13 @@ class WallAnalytic {
         const batchCount = 5;
         // объект {postId: comments[]} 
         let commentsByPostId = {};
-        // если есть хотя бы один пост с комментариями
-        if (postIds.length > 0) {
-            // делаем один execute-запрос и получаем комментарии сразу по всем постам
-            commentsByPostId = await this.vkAPI.getWallComments(postsWithComments[0].owner_id, postIds, batchCount); 
+
+
+        if (includeComments) {
+            if (postIds.length > 0) {
+                // делаем один execute-запрос и получаем комментарии сразу по всем постам
+                commentsByPostId = await this.vkAPI.getWallComments(postsWithComments[0].owner_id, postIds, batchCount); 
+            }
         }
         // если постов с комментариями нет, оставляем пустой объект и идем дальше
 
@@ -44,7 +48,7 @@ class WallAnalytic {
         // перебираем посты и собираем итоговые поля
         for (const post of filtered) {
             // создаем массив комментариев
-            const comments = commentsByPostId[post.id] || [];
+            const comments = includeComments ? (commentsByPostId[post.id] || []) : [];
             // массив готовых комментариев
             const preparedComments = [];
             
@@ -65,7 +69,7 @@ class WallAnalytic {
             // сортируем комментарии по лайкам по убыванию
             preparedComments.sort((a, b) => b.likesCount - a.likesCount);
             // берем топ-5
-            const topComments = preparedComments.slice(0, 5);
+            const topComments = includeComments ? (preparedComments.slice(0, 5)) : [];
             // перевод из unix-секунд в YYYY-MM-DD
             const postDate = new Date(post.date * 1000).toISOString().slice(0, 10);
             // собираем все данные вместе
