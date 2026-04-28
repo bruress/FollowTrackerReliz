@@ -15,6 +15,8 @@ const GIGACHAT_MODEL = process.env.GIGACHAT_MODEL || "GigaChat";
 const CA_CERT_PATH = process.env.CA_CERT_PATH || "";
 // лимит постов для ai анализа
 const MAX_AI_POSTS = 30;
+// размер батча для параллельной отправки в gigachat
+const AI_BATCH_SIZE = 4;
 
 let accessToken = null;
 let tokenExpiresAt = 0;
@@ -69,10 +71,43 @@ export async function getAccessToken() {
 export async function analyzeAi(posts, lowEngagementThreshold) {
     // проверяем, что пришел массив
     const list = Array.isArray(posts) ? posts : [];
-    // массив для готовых постов
-    const result = [];
     // считаем лимит постов
     const cnt = Math.max(0, Math.min(list.length, MAX_AI_POSTS));
+    // здесь храним ai-результаты по индексу поста
+    const aiByIndex = new Array(list.length).fill(null);
+
+    // идем по постам батчами и запускаем запросы параллельно
+    for (let batchStart = 0; batchStart < cnt; batchStart += AI_BATCH_SIZE) {
+        // правая граница текущего батча
+        const batchEnd = Math.min(batchStart + AI_BATCH_SIZE, cnt);
+        // индекс каждого поста из батча
+        const indexes = [];
+        for (let i = batchStart; i < batchEnd; i += 1) {
+            indexes.push(i);
+        }
+
+        // параллельная отправка запросов текущего батча
+        await Promise.all(indexes.map(async (i) => {
+            try {
+                // берем текущий пост
+                const post = list[i];
+                // собираем промт для текущего поста
+                const prompt = buildPostPrompt(post);
+                // отправляем запрос в модель и получаем сырой ответ
+                const raw = await askModel(
+                    "Ты аналитик контента. Отвечай только валидным JSON без markdown. В score пиши только число 0..1, например 0.25, не .25 и не текст.",
+                    prompt,
+                );
+                // парсим ответ и сохраняем по индексу поста
+                aiByIndex[i] = parsePostAiJson(raw);
+            //  ошибка
+            } catch (error) {
+                void error;
+            }
+        }));
+    }
+    // массив для готовых постов
+    const result = [];
 
     // цикл по всем постам
     for (let i=0; i<list.length; i+=1) {
@@ -89,22 +124,9 @@ export async function analyzeAi(posts, lowEngagementThreshold) {
             topCommentsTopicEngagement: { label: "unknown", score: 0 },
         };
 
-        // если пост входит в лимит
-        if (i<cnt) {
-            try {
-                // собираем промт для текущего поста
-                const prompt = buildPostPrompt(post);
-                // отправляем запрос в модель и получаем сырой ответ
-                const raw = await askModel(
-                    "Ты аналитик контента. Отвечай только валидным JSON без markdown. В score пиши только число 0..1, например 0.25, не .25 и не текст.",
-                    prompt,
-                );
-                // парсим ответ
-                ai = parsePostAiJson(raw);
-            //  ошибка
-            } catch (error) {
-                void error;
-            }
+        // если у поста есть готовый ai-результат, подставляем его
+        if (aiByIndex[i]) {
+            ai = aiByIndex[i];
         }
         // читаем числовые поля поста
         const likes = post?.likes || 0;
