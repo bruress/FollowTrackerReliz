@@ -1,0 +1,11 @@
+import { Router } from "express";
+import {getHistoryList, createHistory, getOneHistory, updateStatus} from "../controllers/history.controller.js"
+
+const router = Router();
+
+router.post("/update/:id", updateStatus);
+router.get("/list", getHistoryList);
+router.get("/one/:id", getOneHistory);
+router.post("/add", createHistory);
+
+export default router;
