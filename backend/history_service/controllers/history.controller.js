@@ -5,15 +5,15 @@ export const createHistory = async (req, res) => {
     try {
         const body = req.body || {};
         const user_id = body.user_id;
-        const {api, domain, to_date, from_date } = body;
+        const { api, domain, to_date, from_date } = body;
         if (!api || !user_id || !domain || !to_date || !from_date) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
         const flag_comments = body.flag_comments === undefined ? false : body.flag_comments;
-        const flag_year = body.flag_year === undefined  ? false : body.flag_year;
-        
-        const result = await pool.query (`
+        const flag_year = body.flag_year === undefined ? false : body.flag_year;
+
+        const result = await pool.query(`
             INSERT INTO histories (user_id, domain, to_date, from_date, flag_comments, flag_year, api) 
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (user_id, domain, to_date, from_date, flag_comments, flag_year, api)
@@ -21,7 +21,7 @@ export const createHistory = async (req, res) => {
             RETURNING *;
         `, [user_id, domain, to_date, from_date, flag_comments, flag_year, api]);
     
-        if (result.rowCount == 0) {
+        if (result.rowCount === 0) {
             const existingHistory = await pool.query(`
                 SELECT * FROM histories 
                 WHERE user_id = $1 AND domain = $2 AND to_date = $3 AND from_date = $4
@@ -40,9 +40,8 @@ export const createHistory = async (req, res) => {
             already_exists: false,
             history: result.rows[0]
         });
-       
     } catch (error) {
-        return sendError(res, error, "Ошибка сервера при создании истории", "CREATE_HISTORY_ERROR")
+        return sendError(res, error);
     }
 };
 
@@ -57,7 +56,7 @@ export const getHistoryList = async (req, res) => {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
-        const offset = (page - 1) * limit;
+        const offset = (page-1)*limit;
 
         const countResult = await pool.query(`
             SELECT COUNT(*)::int AS total FROM histories WHERE user_id = $1
@@ -79,17 +78,17 @@ export const getHistoryList = async (req, res) => {
                 page,
                 limit,
                 total,
-                total_pages: Math.ceil(total / limit)
+                total_pages: Math.ceil(total/limit)
             }
         });
 
     } catch (error) {
-        return sendError(res, error, "Ошибка сервера при получении истории пользователя", "GET_HISTORY_LIST_ERROR")
+        return sendError(res, error);
     }
 };
 
 export const getOneHistory = async (req, res) => {
-    try {   
+    try {
         const user_id = req.body?.user_id;
         const history_id = req.params?.id;
 
@@ -103,32 +102,32 @@ export const getOneHistory = async (req, res) => {
 
         if (result.rowCount === 0) {
             throw buildError("История не найдена", "NOT_FOUND", 404);
-        };
+        }
 
         const history = result.rows[0];
-        
+
         return res.status(200).json({
             message: "История успешно получена",
             history
         });
 
     } catch (error) {
-        return sendError(res, error, "Ошибка сервера при получении одной истории", "GET_ONE_HISTORY_ERROR")
-    };
+        return sendError(res, error);
+    }
 };
 
 export const updateStatus = async (req, res) => {
     try {
         const body = req.body || {};
         const user_id = body.user_id;
-        const history_id = req.params?.id; 
+        const history_id = req.params?.id;
         const status = String(body.status || "").trim();
 
         if (!user_id || !history_id || !status) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
-        
-        if (status !== "in_process" && status !== "parsing" && status !== "analysing" && status !== "completed" &&  status !== "failed") {
+
+        if (status !== "in_process" && status !== "parsing" && status !== "analysing" && status !== "completed" && status !== "failed") {
             throw buildError("Некорректный статус", "VALIDATION_ERROR", 400);
         }
 
@@ -138,20 +137,13 @@ export const updateStatus = async (req, res) => {
 
         if (historyResult.rowCount === 0) {
             throw buildError("История не найдена", "NOT_FOUND", 404);
-        };
+        }
 
         const history = historyResult.rows[0];
 
         let parser_file_name = body.parser_file ?? history.parser_file ?? null;
         let analysis_file_name = body.analysis_file ?? history.analysis_file ?? null;
         let errorText = body.error ?? null;
-
-        if (body.parser_file !== undefined && body.parser_file !== null && typeof body.parser_file !== "string") {
-            throw buildError("parser_file должен быть строкой", "VALIDATION_ERROR", 400);
-        }
-        if (body.analysis_file !== undefined && body.analysis_file !== null && typeof body.analysis_file !== "string") {
-            throw buildError("analysis_file должен быть строкой", "VALIDATION_ERROR", 400);
-        }
 
         if (status !== "failed") {
             errorText = null;
@@ -173,6 +165,6 @@ export const updateStatus = async (req, res) => {
             history: updateHistory.rows[0]
         });
     } catch (error) {
-        return sendError(res, error, "Ошибка сервера при обновлении статуса", "UPDATE_HISTORY_STATUS_ERROR")
-    };
+        return sendError(res, error);
+    }
 };

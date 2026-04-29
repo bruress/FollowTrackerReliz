@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {getHistoryList, createHistory, getOneHistory, updateStatus} from "../controllers/history.controller.js"
+import { getHistoryList, createHistory, getOneHistory, updateStatus } from "../controllers/history.controller.js";
 
 const router = Router();
 
