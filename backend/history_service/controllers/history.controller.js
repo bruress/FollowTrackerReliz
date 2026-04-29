@@ -12,7 +12,7 @@ export const createHistory = async (req, res) => {
         }
 
         // проверка на флаги, чтобы случайно в null/undefined не улететь 
-        const flag_comments = body.flag_comments === undefined ? true : body.flag_comments;
+        const flag_comments = body.flag_comments === undefined ? false : body.flag_comments;
         const flag_year = body.flag_year === undefined  ? false : body.flag_year;
         
         const result = await pool.query (`

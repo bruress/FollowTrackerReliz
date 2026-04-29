@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS histories (
     api TEXT NOT NULL,
     to_date DATE NOT NULL,
     from_date DATE NOT NULL,
-    flag_comments BOOLEAN NOT NULL DEFAULT TRUE,
+    flag_comments BOOLEAN NOT NULL DEFAULT FALSE,
     flag_year BOOLEAN NOT NULL DEFAULT FALSE,
     status TEXT NOT NULL DEFAULT 'in_process' CHECK (status IN ('in_process', 'parsing', 'analysing', 'completed', 'failed')),
     parser_file TEXT,

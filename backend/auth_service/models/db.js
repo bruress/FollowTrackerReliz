@@ -5,11 +5,11 @@ dotenv.config();
 const pool = new Pool();
 
 pool.on("connect", () => {
-    console.log("Connected to the database");
+    console.log("auth_service: подключение к базе данных установлено");
 });
 
 pool.on("error", (err) => {
-    console.log("Unexprected error on IDLE client: ", err);
+    console.error("auth_service: неожиданная ошибка клиента базы данных", err);
     process.exit(-1);
 });
 

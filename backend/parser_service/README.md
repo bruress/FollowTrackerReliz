@@ -1,62 +1,162 @@
-## Стек
-- Node.js (ES Modules)
-- Express
+# parser_service
+
+Микросервис парсинга данных сообществ VK.
 
 ## Возможности
-- OAuth-редирект на VK (`/vk/auth`)
-- Парсинг постов по диапазону дат
-- Получение комментариев к постам
-- Сортировка комментариев по лайкам и выбор топ-10
+- Редирект на VK OAuth (`/auth`)
+- Сохранение и удаление VK-токена пользователя
+- Проверка статуса токена (`/statusToken`)
+- Парсинг постов по диапазону дат (`/parse`)
+- Опциональный сбор комментариев
 - Сохранение результата в `data/*.json`
 
+## Стек
+- Node.js
+- Express
+- PostgreSQL
+- `axios`
+- `dotenv`
+- `pg`
+- `cryptr`
 
 ## Установка
 ```bash
+cd backend/parser_service
 npm install
 ```
 
-## Настройка окружения
-Создайте `.env` в корне проекта:
+### Настройка окружения
+Создайте `.env` со значениями:
 
 ```env
 PORT=3003
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=parser_service
+PGUSER=postgres
+PGPASSWORD=postgres
+PARSER_TOKEN_SECRET=your_long_random_secret
 ```
 
-## Запуск
+### Подготовка БД
+```bash
+psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -f migrations/init_db.sql
+```
+
+### Запуск
 ```bash
 npm start
 ```
 
-## API
+Сервис будет доступен на `http://localhost:3003`.
 
-### OAuth redirect
-`GET /vk/auth`
-
-Редиректит пользователя на страницу авторизации VK OAuth.
-
-### Парсинг
-`POST /api/vk/parse`
-
-#### Тело запроса
+## Docker
 ```bash
-curl -i -X POST http://localhost:3003/api/vk/parse \
-  -H 'Content-Type: application/json' \
-  -d '{"vkToken":"token","domainId":"domain","from":"2026-01-01","to":"2026-01-31", "flag": boolean}'
+cd backend/parser_service
+docker build -t parser-service .
+docker run --env-file .env -p 3003:3003 parser-service
 ```
 
-## Куда сохраняется результат
-После успешного запроса создается файл:
-- `data/vk_<domainId>_<YYYY-MM-DD>.json`
+## API
+Базовый префикс: `/api/vk`
+
+### `GET /auth`
+Редирект на страницу авторизации VK.
+
+### `POST /addToken`
+Сохранение токена пользователя.
+
+Request:
+```json
+{
+  "user_id": 1,
+  "vk_token": "vk1.a.xxxxx",
+  "expires_in": 86400
+}
+```
+
+Response `200`:
+```json
+{
+  "message": "Токен успешно создан"
+}
+```
+
+### `POST /deleteToken`
+Удаление токена пользователя.
+
+### `GET /statusToken`
+Проверка наличия токена пользователя.
+
+Response `200`:
+```json
+{
+  "message": "Токен существует",
+  "expires_in": 1745946000
+}
+```
+
+### `POST /parse`
+Запуск парсинга постов.
+
+Request:
+```json
+{
+  "user_id": 1,
+  "domainId": "domain",
+  "from": "2026-01-01",
+  "to": "2026-01-31",
+  "flagParsingYear": false,
+  "flagAllowComments": false
+}
+```
+
+Response `200`:
+```json
+{
+  "result": []
+}
+```
+
+## Валидация
+- `domainId`: обязательное поле
+- `from`, `to`: формат `YYYY-MM-DD`
+- `flagParsingYear`: `boolean` (если передан)
+- `flagAllowComments`: `boolean` (если передан, по умолчанию `false`)
+- `expires_in`: целое число в секундах, больше 0
+- диапазон дат:
+  - без `flagParsingYear`: до 1 месяца
+  - с `flagParsingYear=true`: до 1 года
+
+## Формат ошибки
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Текст ошибки"
+  }
+}
+```
+
+Типовые коды:
+- `400` — ошибка валидации
+- `401` — токен отсутствует или истек
+- `404` — токен/сообщество не найдены
+- `429` — лимит VK API
+- `500` — внутренняя ошибка
 
 ## Структура проекта
-- `server.js` — точка входа
-- `routers/vk.router.js` — маршруты
-- `controllers/vk.controller.js` — обработчики
-- `services/analytic.service.js` — аналитика постов
-- `providers/vk.provider.js` — клиент VK API
-- `providers/api.proviider.js` — базовый API-класс
-- `providers/file.provider.js` — запись JSON в файл
-- `filters/date.filter.js` — фильтрация постов по дате
-- `data/` — выходные файлы
-
-
+```text
+parser_service/
+├── controllers/
+├── filters/
+├── migrations/
+├── models/
+├── providers/
+├── routers/
+├── services/
+├── utils/
+├── server.js
+├── package.json
+└── Dockerfile
+```

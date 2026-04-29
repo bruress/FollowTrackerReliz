@@ -1,25 +1,17 @@
-// импортируем библиотеки
-// Pool - для связи с бд
-// dotenv - для чтения .env
 import {Pool} from "pg";
 import dotenv from "dotenv";
 
-// читаем конфиг
 dotenv.config();
 
-// читаем ключи из .env для подключения бд, используя postgresql environment varibles
 const pool = new Pool();
 
-// успешно подключились
 pool.on("connect", () => {
-    console.log("Connected to the database");
+    console.log("parser_service: подключение к базе данных установлено");
 });
 
-//ошибка
 pool.on("error", (err) => {
-    console.log("Unexpected error on IDLE client: ", err);
-    process.exit(-1); // прерываем
+    console.error("parser_service: неожиданная ошибка клиента базы данных", err);
+    process.exit(-1);
 })
 
-// экспорт для дальнейшего использования
 export default pool;

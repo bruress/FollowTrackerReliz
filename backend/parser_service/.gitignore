@@ -1,6 +1,5 @@
 node_modules/
 .env
 .env.production
-cookies.txt
 test.md
-README.md
+data/

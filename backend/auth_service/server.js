@@ -20,5 +20,5 @@ app.use(cookieParser());
 app.use("/api/auth", auth)
 
 app.listen(PORT, () => {
-    console.log(`Request's server listening on port ${PORT}`);
+    console.log(`auth_service: сервер запущен на порту ${PORT}`);
 });

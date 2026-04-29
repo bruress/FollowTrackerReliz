@@ -1,77 +1,71 @@
+import { buildError } from "../utils/error.utils.js";
+
 class WallAnalytic {
     constructor(vkAPI, periodFilter) {
-        // сохраняем зависиомсти
-        // vkAPI - клиент внешнего API
-        // periodFilter - фильт по диапозону дат
         this.vkAPI = vkAPI;
         this.periodFilter = periodFilter;
     }
 
-    // получение всех постов, а также последующий их анализ
-    // [domen] - айди группы
-    // [period] - объект диапазона {from, to}
-    // return - массив необходимых данных
-    async getData(domainId, period, options={}) {
-        const includeComments = options.includeComments!==false;
-        // нижняя граница в unix
+    async getData(domainId, period, includeComments = false) {
+        if (!(period?.from instanceof Date) || !(period?.to instanceof Date) || Number.isNaN(period.from.getTime()) || Number.isNaN(period.to.getTime())) {
+            throw buildError("Некорректный период", 400, "VALIDATION_ERROR");
+        }
         const start = Math.floor(period.from.getTime() / 1000);
-        // получаем посты
         const posts = await this.vkAPI.getWall(domainId, start);
-        // фильтруем посты по периоду
         const filtered = this.periodFilter.filter(posts, period);
         if (filtered.length === 0) {
-            const error = new Error("В выбранном периоде посты не найдены");
-            error.status = 404;
-            error.code = "NO_POSTS_IN_PERIOD";
-            throw error;
+            throw buildError("В выбранном периоде посты не найдены", 404, "NO_POSTS_IN_PERIOD");
         }
         // выбираем только посты, где реально есть комментарии, чтобы не слать лишние запросы
         const postsWithComments = filtered.filter((post) => (post.comments?.count ?? 0) > 0);
-        // берем id этих постов для одного батч-вызова
-        const postIds = postsWithComments.map((post) => post.id);
-        // берем маленькую порцию старых комментариев под каждый пост
+        const baseOwnerId = Number(postsWithComments[0]?.owner_id);
+        const safePostsWithComments = Number.isInteger(baseOwnerId)
+            ? postsWithComments.filter((post) => Number(post.owner_id) === baseOwnerId)
+            : [];
+        const postIds = safePostsWithComments.map((post) => post.id);
         const batchCount = 5;
-        // объект {postId: comments[]} 
         let commentsByPostId = {};
 
 
         if (includeComments) {
-            if (postIds.length > 0) {
+            if (postIds.length > 0 && Number.isInteger(baseOwnerId)) {
                 // делаем один execute-запрос и получаем комментарии сразу по всем постам
-                commentsByPostId = await this.vkAPI.getWallComments(postsWithComments[0].owner_id, postIds, batchCount); 
+                commentsByPostId = await this.vkAPI.getWallComments(baseOwnerId, postIds, batchCount); 
             }
         }
         // если постов с комментариями нет, оставляем пустой объект и идем дальше
 
-        // массив готовых постов
-        const preparedPosts = [];
         // перебираем посты и собираем итоговые поля
+        const preparedPosts = [];
         for (const post of filtered) {
             // создаем массив комментариев
             const comments = includeComments ? (commentsByPostId[post.id] || []) : [];
-            // массив готовых комментариев
-            const preparedComments = [];
-            
-            // нормализуем комментарии
+            const topComments = [];
             for (const comment of comments) {
-                // пропускаем пустые/удаленные комментарии
                 if (!comment || !comment.text) {
                     continue;
                 }
                 const likesCount = Number(comment.likes?.count) || 0;
-                // добавляем в массив
-                preparedComments.push({
+                const normalizedComment = {
                     id: comment.id,
                     text: comment.text,
                     likesCount: likesCount,
-                });
+                };
+
+                // поддерживаем топ-5 без полной сортировки массива
+                let insertIndex = 0;
+                while (insertIndex < topComments.length && topComments[insertIndex].likesCount >= normalizedComment.likesCount) {
+                    insertIndex += 1;
+                }
+                if (insertIndex < 5) {
+                    topComments.splice(insertIndex, 0, normalizedComment);
+                    if (topComments.length > 5) {
+                        topComments.pop();
+                    }
+                }
             }
-            // сортируем комментарии по лайкам по убыванию
-            preparedComments.sort((a, b) => b.likesCount - a.likesCount);
-            // берем топ-5
-            const topComments = includeComments ? (preparedComments.slice(0, 5)) : [];
-            // перевод из unix-секунд в YYYY-MM-DD
             const postDate = new Date(post.date * 1000).toISOString().slice(0, 10);
+
             // собираем все данные вместе
             preparedPosts.push({
                 id: post.id,
@@ -85,8 +79,8 @@ class WallAnalytic {
                 topComments,
             });
         }
-        return preparedPosts;   // возвращаем данные
-    }
-}
-// экспортируем класс для дальнейшего использования
+        return preparedPosts;
+    };
+};
+
 export default WallAnalytic;

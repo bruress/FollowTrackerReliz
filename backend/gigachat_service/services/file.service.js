@@ -11,28 +11,35 @@ const projectRoot = process.cwd();
 const inputDir = path.join(projectRoot, "..", "parser_service", "data");
 // папка для сохранения результатов projectRoot/data
 const outputDir = path.join(projectRoot, "data");
+const FILE_NAME_PATTERN = /^([a-zA-Z0-9]+)_(.+)_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})(?:_year_(0|1)_comments_(0|1))?\.json$/;
 
-// разбираем имя файла api_domain_date_date.json и достаем api + domain + даты
+// разбираем имя файла и достаем api + domain + даты + флаги
 export function parseInputFileName(fileName) {
-    // проверка передали ли файл
-    const saveFileName = fileName.trim();
-    // убираем .json и разбиваем на части
-    const parts = saveFileName.slice(0, -5).split("_");
-    // берем api сервис из начала имени
+    const safeFileName = path.basename(String(fileName || "").trim());
+    const parsedByPattern = safeFileName.match(FILE_NAME_PATTERN);
+    if (parsedByPattern) {
+        const apiService = parsedByPattern[1];
+        const domain = parsedByPattern[2];
+        const firstDate = parsedByPattern[3];
+        const secondDate = parsedByPattern[4];
+        const yearFlag = parsedByPattern[5] ?? "0";
+        const commentsFlag = parsedByPattern[6] ?? "1";
+        return { apiService, domain, firstDate, secondDate, yearFlag, commentsFlag };
+    }
+
+    // fallback для старого формата vk_domain_from_to.json
+    const parts = safeFileName.slice(0, -5).split("_");
     const apiService = parts[0];
-    // забираем даты из конца fileName
-    const secondDate = parts[parts.length-1];
-    const firstDate = parts[parts.length-2];
-    // все между api сервисом и датами считаем domain
+    const secondDate = parts[parts.length - 1];
+    const firstDate = parts[parts.length - 2];
     const domain = parts.slice(1, -2).join("_");
-    
-    return { apiService, domain, firstDate, secondDate };
+    return { apiService, domain, firstDate, secondDate, yearFlag: "0", commentsFlag: "1" };
 }
 
 // читаем входной json файл из parser_service/data
 export function readInputPosts(fileName) {
     // берем только имя файла
-    const saveFileName = fileName.trim();
+    const saveFileName = path.basename(String(fileName || "").trim());
     // собираем полный путь до входного файла
     const inputPath = path.join(inputDir, saveFileName);
     // читаем и возвращаем json
@@ -44,7 +51,7 @@ export function saveAnalysis(fileMeta, result) {
     // создаем папку data, если ее нет
     fs.mkdirSync(outputDir, { recursive: true });
     // собираем имя выходного файла
-    const outputFile = `analysis_${fileMeta.apiService}_${fileMeta.domain}_${fileMeta.firstDate}_${fileMeta.secondDate}.json`;
+    const outputFile = `analysis_${fileMeta.apiService}_${fileMeta.domain}_${fileMeta.firstDate}_${fileMeta.secondDate}_year_${fileMeta.yearFlag}_comments_${fileMeta.commentsFlag}.json`;
     // собираем путь до выходного файла
     const outputPath = path.join(outputDir, outputFile);
     // записываем результат в json
