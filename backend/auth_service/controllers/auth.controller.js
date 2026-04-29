@@ -5,10 +5,12 @@ import { buildError, sendError } from "../utils/error.util.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// регистрация
 export const register = async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const body = req.body || {};
+        const username = body.username;
+        const email = body.email;
+        const password = body.password;
         const safeUsername = String(username || "");
         const safeEmail = String(email || "");
         const safePassword = String(password || "");
@@ -51,7 +53,9 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        const { password, email } = req.body;
+        const body = req.body || {};
+        const password = body.password;
+        const email = body.email;
         const safePassword = String(password || "");
         const safeEmail = String(email || "");
         const normalizedEmail = safeEmail.toLowerCase();
@@ -67,12 +71,12 @@ export const login = async (req, res) => {
             "SELECT id, username, email, password FROM users WHERE email = $1",
             [normalizedEmail]
         );
-        if (user.rows.length === 0) {
+        if (user.rowCount === 0) {
             throw buildError("Неверные учетные данные", "AUTH_FAILED", 401);
         }
         const userData = user.rows[0];
         const isMatch = await bcrypt.compare(safePassword, userData.password);
-        if (isMatch === false) {
+        if (!isMatch) {
             throw buildError("Неверные учетные данные", "AUTH_FAILED", 401);
         }
         const token = generateToken(userData.id);

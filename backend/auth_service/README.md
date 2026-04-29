@@ -61,7 +61,7 @@ docker run --env-file .env -p 3001:3001 auth-service
 ## API
 Базовый префикс: `/api/auth`
 
-### `POST /registr`
+### `POST /register`
 Регистрация пользователя.
 
 Request:
