@@ -13,6 +13,6 @@ CREATE TABLE IF NOT EXISTS histories (
     error TEXT,
     CHECK (from_date <= to_date)
 );
--- создаем индекс с именем (уникалным), только если его не существует
+
 CREATE UNIQUE INDEX IF NOT EXISTS histories_unique_key_idx
 ON histories (user_id, domain, to_date, from_date, flag_comments, flag_year, api);

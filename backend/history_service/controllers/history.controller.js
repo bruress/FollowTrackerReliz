@@ -1,7 +1,6 @@
 import pool from "../models/db.js";
 import { buildError, sendError } from "../utils/error.util.js";
 
-// создание истории
 export const createHistory = async (req, res) => {
     try {
         const body = req.body || {};
@@ -11,7 +10,6 @@ export const createHistory = async (req, res) => {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
-        // проверка на флаги, чтобы случайно в null/undefined не улететь 
         const flag_comments = body.flag_comments === undefined ? false : body.flag_comments;
         const flag_year = body.flag_year === undefined  ? false : body.flag_year;
         
@@ -36,7 +34,6 @@ export const createHistory = async (req, res) => {
     }
 };
 
-// получение всей истории пользователя
 export const getHistoryList = async (req, res) => {
     try {
         const user_id = req.user?.id;
@@ -44,7 +41,7 @@ export const getHistoryList = async (req, res) => {
         if (!user_id) {
             throw buildError("Отсутствует user_id", "VALIDATION_ERROR", 400);
         }
-        // от новых к старому
+
         const result = await pool.query(`
             SELECT * FROM histories WHERE user_id = $1 ORDER BY id DESC
         `, [user_id]);
@@ -59,7 +56,6 @@ export const getHistoryList = async (req, res) => {
     }
 };
 
-// получение одной истории
 export const getOneHistory = async (req, res) => {
     try {   
         const user_id = req.user?.id;
@@ -89,11 +85,10 @@ export const getOneHistory = async (req, res) => {
     };
 };
 
-// обновляет статусы
 export const updateStatus = async (req, res) => {
     try {
         const user_id = req.user?.id;
-        const history_id = req.params?.id;  // подставляется из url
+        const history_id = req.params?.id; 
         const body = req.body || {};
         const status = String(body.status || "").trim();
 
@@ -122,11 +117,9 @@ export const updateStatus = async (req, res) => {
         if (status === "parsing" && !parser_file_name) {
             parser_file_name = `${history.api}_${history.domain}_${history.from_date}_${history.to_date}.json`;
         }
-    
         if (status === "analysing"  && !analysis_file_name) {
             analysis_file_name = `analysis_${history.api}_${history.domain}_${history.from_date}_${history.to_date}.json`;
         }
-
         if (status === "completed") {
             if (!parser_file_name) {
                 parser_file_name = `${history.api}_${history.domain}_${history.from_date}_${history.to_date}.json`;
@@ -135,7 +128,6 @@ export const updateStatus = async (req, res) => {
                 analysis_file_name = `analysis_${history.api}_${history.domain}_${history.from_date}_${history.to_date}.json`;
             }
         }
-
         if (status !== "failed") {
             errorText = null;
         }

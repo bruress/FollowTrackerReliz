@@ -1,24 +1,19 @@
 import { parseInputFileName, readInputPosts, saveAnalysis, readResult } from "./file.service.js";
 import { calculateNumericMetrics } from "./metrics.service.js";
 import { getAccessToken, analyzeAi, buildDefaultAiMetrics } from "./gigachat.service.js";
+import { buildError } from "../utils/error.util.js";
 
-const LOW_ENGAGEMENT_THRESHOLD = 0.01;
 
-// главную функцию анализа
 export async function runAnalysis(fileName) {
     const startedAt = Date.now();
-
-    // service + domain + data + data
     const fileMeta = parseInputFileName(fileName);
-    // можем получить токен?
+    if (!fileMeta) {
+        throw buildError("Некорректное имя входного файла", 400, "INVALID_FILE_NAME");
+    }
     await getAccessToken();
-    // читаем входной файл как есть
-    const posts = readInputPosts(fileName);
-    // считаем числовые метрики без ai
+    const posts = await readInputPosts(fileName);
     const numericMetrics = calculateNumericMetrics(posts);
-    // ai-метрики
-    const postsWithAi = await analyzeAi(posts, LOW_ENGAGEMENT_THRESHOLD);
-    // ai-метрики по всему паблику
+    const postsWithAi = await analyzeAi(posts, 0.01);
     const aiMetrics = buildDefaultAiMetrics(postsWithAi);
 
     const durationMs = Date.now() - startedAt;
@@ -29,12 +24,10 @@ export async function runAnalysis(fileName) {
         posts: postsWithAi,
     };
 
-    // сохраняем 
-    const { outputFile } = saveAnalysis(fileMeta, result);
+    const { outputFile } = await saveAnalysis(fileMeta, result);
     return { outputFile, durationMs };
 }
 
-// читаем сохраненный результат по имени файла
-export function getSavedAnalysis(resultFileName) {
-    return readResult(resultFileName);
+export async function getSavedAnalysis(resultFileName) {
+    return await readResult(resultFileName);
 }
