@@ -4,14 +4,17 @@ import { buildError, sendError } from "../utils/error.util.js";
 export const createHistory = async (req, res) => {
     try {
         const body = req.body || {};
-        const user_id = body.user_id;
-        const { api, domain, to_date, from_date } = body;
-        if (!api || !user_id || !domain || !to_date || !from_date) {
+        const userId = body.user_id;
+        const api = body.api;
+        const domain = body.domain;
+        const toDate = body.to_date;
+        const fromDate = body.from_date;
+        if (!api || !userId || !domain || !toDate || !fromDate) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
-        const flag_comments = body.flag_comments === undefined ? false : body.flag_comments;
-        const flag_year = body.flag_year === undefined ? false : body.flag_year;
+        const flagComments = body.flag_comments === undefined ? false : body.flag_comments;
+        const flagYear = body.flag_year === undefined ? false : body.flag_year;
 
         const result = await pool.query(`
             INSERT INTO histories (user_id, domain, to_date, from_date, flag_comments, flag_year, api) 
@@ -19,7 +22,7 @@ export const createHistory = async (req, res) => {
             ON CONFLICT (user_id, domain, to_date, from_date, flag_comments, flag_year, api)
             DO NOTHING
             RETURNING *;
-        `, [user_id, domain, to_date, from_date, flag_comments, flag_year, api]);
+        `, [userId, domain, toDate, fromDate, flagComments, flagYear, api]);
     
         if (result.rowCount === 0) {
             const existingHistory = await pool.query(`
@@ -27,12 +30,12 @@ export const createHistory = async (req, res) => {
                 WHERE user_id = $1 AND domain = $2 AND to_date = $3 AND from_date = $4
                 AND flag_comments = $5 AND flag_year = $6 AND api = $7
                 LIMIT 1
-            `, [user_id, domain, to_date, from_date, flag_comments, flag_year, api]);
+            `, [userId, domain, toDate, fromDate, flagComments, flagYear, api]);
 
             return res.status(200).json({
                 message: "Такая история уже существует",
                 already_exists: true,
-                history: existingHistory.rows[0] || null
+                history: existingHistory.rows[0] ?? null
             });
         }
         return res.status(201).json({
@@ -48,11 +51,11 @@ export const createHistory = async (req, res) => {
 export const getHistoryList = async (req, res) => {
     try {
         const body = req.body || {};
-        const user_id = body.user_id;
+        const userId = body.user_id;
         const page = body.page;
         const limit = body.limit;
 
-        if (!user_id || !page || !limit) {
+        if (!userId || !page || !limit) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
@@ -60,14 +63,14 @@ export const getHistoryList = async (req, res) => {
 
         const countResult = await pool.query(`
             SELECT COUNT(*)::int AS total FROM histories WHERE user_id = $1
-        `, [user_id]);
+        `, [userId]);
 
         const result = await pool.query(`
             SELECT * FROM histories 
             WHERE user_id = $1 
             ORDER BY id DESC
             LIMIT $2 OFFSET $3
-        `, [user_id, limit, offset]);
+        `, [userId, limit, offset]);
 
         const total = countResult.rows[0]?.total ?? 0;
 
@@ -89,16 +92,17 @@ export const getHistoryList = async (req, res) => {
 
 export const getOneHistory = async (req, res) => {
     try {
-        const user_id = req.body?.user_id;
-        const history_id = req.params?.id;
+        const body = req.body || {};
+        const userId = body.user_id;
+        const historyId = req.params?.id;
 
-        if (!user_id || !history_id) {
+        if (!userId || !historyId) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
         const result = await pool.query(`
             SELECT * FROM histories WHERE id = $1 AND user_id = $2 LIMIT 1
-        `, [history_id, user_id]);
+        `, [historyId, userId]);
 
         if (result.rowCount === 0) {
             throw buildError("История не найдена", "NOT_FOUND", 404);
@@ -119,21 +123,21 @@ export const getOneHistory = async (req, res) => {
 export const updateStatus = async (req, res) => {
     try {
         const body = req.body || {};
-        const user_id = body.user_id;
-        const history_id = req.params?.id;
+        const userId = body.user_id;
+        const historyId = req.params?.id;
         const status = String(body.status || "").trim();
 
-        if (!user_id || !history_id || !status) {
+        if (!userId || !historyId || !status) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
 
-        if (status !== "in_process" && status !== "parsing" && status !== "analysing" && status !== "completed" && status !== "failed") {
+        if (!["in_process", "parsing", "analysing", "completed", "failed"].includes(status)) {
             throw buildError("Некорректный статус", "VALIDATION_ERROR", 400);
         }
 
         const historyResult = await pool.query(`
             SELECT * FROM histories WHERE id = $1 AND user_id = $2 LIMIT 1
-        `, [history_id, user_id]);
+        `, [historyId, userId]);
 
         if (historyResult.rowCount === 0) {
             throw buildError("История не найдена", "NOT_FOUND", 404);
@@ -141,8 +145,8 @@ export const updateStatus = async (req, res) => {
 
         const history = historyResult.rows[0];
 
-        let parser_file_name = body.parser_file ?? history.parser_file ?? null;
-        let analysis_file_name = body.analysis_file ?? history.analysis_file ?? null;
+        let parserFileName = body.parser_file ?? history.parser_file ?? null;
+        let analysisFileName = body.analysis_file ?? history.analysis_file ?? null;
         let errorText = body.error ?? null;
 
         if (status !== "failed") {
@@ -158,7 +162,7 @@ export const updateStatus = async (req, res) => {
             UPDATE histories SET status = $1, parser_file  = $2, 
             analysis_file = $3, error = $4 WHERE id = $5 AND user_id = $6 
             RETURNING *
-        `, [status, parser_file_name, analysis_file_name, errorText, history_id, user_id]);
+        `, [status, parserFileName, analysisFileName, errorText, historyId, userId]);
 
         return res.status(200).json({
             message: "Статус истории успешно обновлен",
