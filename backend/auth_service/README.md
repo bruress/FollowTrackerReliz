@@ -125,8 +125,7 @@ Response `200`:
 {
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Пожалуйста заполните все поля",
-    "details": null
+    "message": "Пожалуйста заполните все поля"
   }
 }
 ```

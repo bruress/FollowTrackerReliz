@@ -11,13 +11,13 @@ const app = express();
 
 app.use(cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true, 
+    credentials: true,
 }));
 
-app.use(express.json())
+app.use(express.json());
 app.use(cookieParser());
 
-app.use("/api/auth", auth)
+app.use("/api/auth", auth);
 
 app.listen(PORT, () => {
     console.log(`auth_service: сервер запущен на порту ${PORT}`);

@@ -1,8 +1,7 @@
-export function buildError(message, code, status, details = null) {
+export function buildError(message, code, status) {
     const error = new Error(message);
     error.code = code;
     error.status = status;
-    error.details = details;
     return error;
 }
 
@@ -11,7 +10,6 @@ export function sendError(res, error, fallbackMessage = "Ошибка серве
         error: {
             code: error?.code || fallbackCode,
             message: error?.message || fallbackMessage,
-            details: error?.details ?? null,
         },
     });
 }

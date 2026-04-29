@@ -154,8 +154,7 @@ Request:
 {
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Текст ошибки",
-    "details": null
+    "message": "Текст ошибки"
   }
 }
 ```
