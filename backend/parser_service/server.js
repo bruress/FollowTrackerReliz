@@ -1,13 +1,13 @@
-import express from 'express';
+import express from "express";
 import dotenv from "dotenv";
 import vkRouter from "./routers/vk.router.js";
-import { startTokenLife } from './controllers/token.controller.js';
+import { startTokenLife } from "./controllers/token.controller.js";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3003;
 
-const app = express(); 
+const app = express();
 
 app.use(express.json());
 

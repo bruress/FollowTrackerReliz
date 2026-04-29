@@ -1,4 +1,4 @@
-import {Pool} from "pg";
+import { Pool } from "pg";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -12,6 +12,6 @@ pool.on("connect", () => {
 pool.on("error", (err) => {
     console.error("parser_service: неожиданная ошибка клиента базы данных", err);
     process.exit(-1);
-})
+});
 
 export default pool;
