@@ -1,10 +1,10 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile } from "fs/promises";
 
-export async function readJsonFile(filePath) {
-    const content = await readFile(filePath, "utf-8");
+export async function readFile(filePath) {
+    const content = await fsReadFile(filePath, "utf-8");
     return JSON.parse(content);
 }
 
-export async function writeJsonFile(filePath, data) {
-    await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+export async function writeFile(filePath, data) {
+    await fsWriteFile(filePath, JSON.stringify(data, null, 2), "utf-8");
 }

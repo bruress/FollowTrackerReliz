@@ -1,37 +1,28 @@
 import fs from "fs";
 import https from "https";
-import path from "path";
-import { fileURLToPath } from "url";
 import { GigaChat } from "gigachat";
-import { round, calcEngagementRate } from "../utils/math.util.js";
+import { round, calcEngagement } from "../utils/math.util.js";
 import { buildError } from "../utils/error.util.js";
 
 const GIGACHAT_API_PERS = process.env.GIGACHAT_API_PERS || "";
 const GIGACHAT_AUTH_KEY = process.env.GIGACHAT_AUTH_KEY || "";
 const GIGACHAT_MODEL = process.env.GIGACHAT_MODEL || "GigaChat";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SERVICE_ROOT = path.resolve(__dirname, "..");
-const CA_CERT_PATH_RAW = String(process.env.CA_CERT_PATH || "").trim();
-const CA_CERT_PATH = path.isAbsolute(CA_CERT_PATH_RAW)
-    ? CA_CERT_PATH_RAW
-    : path.resolve(SERVICE_ROOT, CA_CERT_PATH_RAW);
-const MAX_AI_POSTS = 30;
+const certPath = String(process.env.CA_CERT_PATH || "").trim();
 
-let accessToken = null;
-let tokenExpiresAt = 0;
+let token = null;
+let tokenUntil = 0;
 
 // создаем https с сертификатом
-if (!CA_CERT_PATH_RAW) {
-    throw buildError("Не задан CA_CERT_PATH", 500, "CONFIG_ERROR");
+if (!certPath) {
+    throw buildError("Не задан CA_CERT_PATH", "CONFIG_ERROR", 500);
 }
-if (!fs.existsSync(CA_CERT_PATH)) {
-    throw buildError("Файл сертификата не найден", 500, "CONFIG_ERROR");
+if (!fs.existsSync(certPath)) {
+    throw buildError("Файл сертификата не найден", "CONFIG_ERROR", 500);
 }
-const cert = fs.readFileSync(CA_CERT_PATH);
+const cert = fs.readFileSync(certPath);
 const httpsAgent = new https.Agent({ ca: cert });
 
-const gigaChatClient = new GigaChat({
+const client = new GigaChat({
     credentials: GIGACHAT_AUTH_KEY,
     scope: GIGACHAT_API_PERS,
     model: GIGACHAT_MODEL,
@@ -40,35 +31,35 @@ const gigaChatClient = new GigaChat({
 });
 
 export async function getAccessToken() {
-    if (accessToken && Date.now() < tokenExpiresAt) {
-        return accessToken;
+    if (token && Date.now() < tokenUntil) {
+        return token;
     }
     try {
-        await gigaChatClient.updateToken();
-        const tokenFresh = gigaChatClient._accessToken;
-        if (!tokenFresh?.access_token || !tokenFresh?.expires_at) {
-            throw buildError("GigaChat вернул пустой токен", 502, "GIGACHAT_EMPTY_TOKEN");
+        await client.updateToken();
+        const newToken = client._accessToken;
+        if (!newToken?.access_token || !newToken?.expires_at) {
+            throw buildError("GigaChat вернул пустой токен", "GIGACHAT_EMPTY_TOKEN", 502);
         }
-        accessToken = tokenFresh.access_token;
-        tokenExpiresAt = Number(tokenFresh.expires_at);
-        return accessToken;
+        token = newToken.access_token;
+        tokenUntil = Number(newToken.expires_at);
+        return token;
     } catch (error) {
         console.error("Ошибка получения токена GigaChat:", error?.message || error);
         if (error?.status) {
             throw error;
         }
-        throw buildError("Не удалось получить токен GigaChat", 502, "GIGACHAT_TOKEN_ERROR");
+        throw buildError("Не удалось получить токен GigaChat", "GIGACHAT_TOKEN_ERROR", 502);
     }
 }
 
 export async function analyzeAi(posts, lowEngagementThreshold) {
-    const list = Array.isArray(posts) ? posts : [];
+    const items = posts;
     const result = [];
-    const cnt = Math.max(0, Math.min(list.length, MAX_AI_POSTS));
+    const aiLimit = Math.max(0, Math.min(items.length, 30));
 
-    for (let i=0; i<list.length; i+=1) {
-        const post = list[i];
-        let ai = {
+    for (let i=0; i<items.length; i+=1) {
+        const post = items[i];
+        let aiData = {
             toxicity: { label: "unknown", score: 0 },
             undesirableContent: { label: "unknown", score: 0 },
             emotionalTone: { label: "unknown", score: 0 },
@@ -79,14 +70,14 @@ export async function analyzeAi(posts, lowEngagementThreshold) {
         };
 
         // если пост входит в лимит
-        if (i<cnt) {
+        if (i<aiLimit) {
             try {
                 const prompt = buildPostPrompt(post);
-                const raw = await askModel(
+                const raw = await askAi(
                     "Ты аналитик контента. Отвечай только валидным JSON без markdown. В score пиши только число 0..1, например 0.25, не .25 и не текст.",
                     prompt,
                 );
-                ai = parsePostAiJson(raw);
+                aiData = parseAi(raw);
             } catch (error) {
                 void error;
             }
@@ -97,12 +88,12 @@ export async function analyzeAi(posts, lowEngagementThreshold) {
         const reposts = post?.reposts || 0;
         const views = post?.views || 0;
 
-        const engagementRate = calcEngagementRate(likes, comments, reposts, views);
+        const engagementRate = calcEngagement(likes, comments, reposts, views);
 
         const flags = {
             isLowEngagement: engagementRate < lowEngagementThreshold,
-            isPotentiallyToxic: ai.toxicity.score >= 0.6,
-            isPotentiallyUndesirable: ai.undesirableContent.score >= 0.6,
+            isPotentiallyToxic: aiData.toxicity.score >= 0.6,
+            isPotentiallyUndesirable: aiData.undesirableContent.score >= 0.6,
         };
 
         result.push({
@@ -114,7 +105,7 @@ export async function analyzeAi(posts, lowEngagementThreshold) {
                 views,
                 engagementRate,
             },
-            ai,
+            ai: aiData,
             flags,
         });
     }
@@ -122,8 +113,8 @@ export async function analyzeAi(posts, lowEngagementThreshold) {
 }
 
 // отправляем один запрос к gigachat и возвращаем чистый текст
-async function askModel(systemText, userText) {
-    const response = await gigaChatClient.chat({
+async function askAi(systemText, userText) {
+    const response = await client.chat({
         messages: [
             // как себя вести
             { role: "system", content: systemText },
@@ -138,11 +129,11 @@ async function askModel(systemText, userText) {
 }
 
 export function buildDefaultAiMetrics(posts) {
-    const toxicityDetection = aggregateAiScore(posts, "toxicity");
-    const undesirableContentDetection = aggregateAiScore(posts, "undesirableContent");
-    const emotionalToneAssessment = aggregateAiScore(posts, "emotionalTone");
-    const uniquenessAssessment = aggregateAiScore(posts, "uniqueness");
-    const semanticSignificanceAssessment = aggregateAiScore(posts, "semanticSignificance");
+    const toxicityDetection = sumAiScore(posts, "toxicity");
+    const undesirableContentDetection = sumAiScore(posts, "undesirableContent");
+    const emotionalToneAssessment = sumAiScore(posts, "emotionalTone");
+    const uniquenessAssessment = sumAiScore(posts, "uniqueness");
+    const semanticSignificanceAssessment = sumAiScore(posts, "semanticSignificance");
 
     return {
         toxicityDetection,
@@ -156,7 +147,7 @@ export function buildDefaultAiMetrics(posts) {
 function buildPostPrompt(post) {
     const text = String(post.text || "");
     const clippedText = text.length > 1500 ? `${text.slice(0, 1500)}...` : text;
-    const topCommentsText = formatTopComments(post.topComments);
+    const topCommentsText = formatComments(post.topComments);
     const postId = String(post?.id || "");
     const postDate = String(post?.date || "");
     const likes = post?.likes || 0;
@@ -164,7 +155,7 @@ function buildPostPrompt(post) {
     const reposts = post?.reposts || 0;
     const views = post?.views || 0;
 
-    const engagementRate = calcEngagementRate(likes, comments, reposts, views);
+    const engagementRate = calcEngagement(likes, comments, reposts, views);
 
     const numericLine = `likes=${likes}; comments=${comments}; reposts=${reposts}; views=${views}; engagementRate=${engagementRate}`;
     const lines = [
@@ -187,21 +178,21 @@ function buildPostPrompt(post) {
     return lines.join("\n");
 }
 
-function parsePostAiJson(raw) {
+function parseAi(raw) {
     const parsed = JSON.parse(String(raw || "{}"));
 
     return {
-        toxicity: normalizeLabelScore(parsed?.toxicity, "low"),
-        undesirableContent: normalizeLabelScore(parsed?.undesirableContent, "none"),
-        emotionalTone: normalizeLabelScore(parsed?.emotionalTone, "neutral"),
-        uniqueness: normalizeLabelScore(parsed?.uniqueness, "medium"),
-        semanticSignificance: normalizeLabelScore(parsed?.semanticSignificance, "medium"),
-        topCommentsSentiment: normalizeLabelScore(parsed?.topCommentsSentiment, "neutral"),
-        topCommentsTopicEngagement: normalizeLabelScore(parsed?.topCommentsTopicEngagement, "medium"),
+        toxicity: normalizeScore(parsed?.toxicity, "low"),
+        undesirableContent: normalizeScore(parsed?.undesirableContent, "none"),
+        emotionalTone: normalizeScore(parsed?.emotionalTone, "neutral"),
+        uniqueness: normalizeScore(parsed?.uniqueness, "medium"),
+        semanticSignificance: normalizeScore(parsed?.semanticSignificance, "medium"),
+        topCommentsSentiment: normalizeScore(parsed?.topCommentsSentiment, "neutral"),
+        topCommentsTopicEngagement: normalizeScore(parsed?.topCommentsTopicEngagement, "medium"),
     };
 }
 
-function formatTopComments(topComments) {
+function formatComments(topComments) {
     if (!Array.isArray(topComments) || topComments.length === 0) {
         return "none";
     }
@@ -219,14 +210,14 @@ function formatTopComments(topComments) {
     return lines.length > 0 ? lines.join(" | ") : "none";
 }
 
-function normalizeLabelScore(value, defaultLabel) {
+function normalizeScore(value, defaultLabel) {
     return {
         label: String(value?.label || defaultLabel),
-        score: Score(value?.score),
+        score: scoreValue(value?.score),
     };
 }
 
-function Score(value) {
+function scoreValue(value) {
     const score = Number(value);
     if (!Number.isFinite(score)) {
         return 0;
@@ -240,9 +231,9 @@ function Score(value) {
     return round(score);
 }
 
-function aggregateAiScore(posts, key) {
-    const defaultLabel = getDefaultLabelByKey(key);
-    if (!Array.isArray(posts) || posts.length === 0) {
+function sumAiScore(posts, key) {
+    const defaultLabel = defaultLabelKey(key);
+    if (posts.length === 0) {
         return { label: defaultLabel, score: 0 };
     }
     const labelsCount = {};
@@ -253,7 +244,7 @@ function aggregateAiScore(posts, key) {
         if (label !== "unknown") {
             labelsCount[label] = (labelsCount[label] || 0)+1;
         }
-        sum += Score(metric.score);
+        sum += scoreValue(metric.score);
     }
 
     const topLabel = Object.entries(labelsCount).sort((a, b) => b[1]-a[1])[0]?.[0] || defaultLabel;
@@ -264,7 +255,7 @@ function aggregateAiScore(posts, key) {
     };
 }
 
-function getDefaultLabelByKey(key) {
+function defaultLabelKey(key) {
     if (key === "toxicity") {
         return "low";
     }

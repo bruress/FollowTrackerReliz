@@ -5,7 +5,7 @@ export async function analysis(req, res) {
     try {
         const fileName = String(req.body?.fileName || "").trim();
         if (!fileName) {
-            throw buildError("Имя файла обязательно", 400, "FILE_NAME_REQUIRED");
+            throw buildError("Имя файла обязательно", "VALIDATION_ERROR", 400);
         }
         const result = await runAnalysis(fileName);
         return res.status(200).json({
@@ -19,11 +19,11 @@ export async function analysis(req, res) {
     }
 }
 
-export async function getAnalysisResultController(req, res) {
+export async function getResult(req, res) {
     try {
-        const resultFileName = String(req.params?.file ?? "").trim();
+        const resultFileName = String(req.params?.file || "").trim();
         if (!resultFileName) {
-            throw buildError("Имя файла результата обязательно", 400, "RESULT_FILE_REQUIRED");
+            throw buildError("Имя файла результата обязательно", "VALIDATION_ERROR", 400);
         }
         const result = await getSavedAnalysis(resultFileName);
         return res.status(200).json(result);

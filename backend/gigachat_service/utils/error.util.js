@@ -1,15 +1,15 @@
-export function buildError(message, status, code) {
+export function buildError(message, code, status) {
     const error = new Error(message);
-    error.status = status;
     error.code = code;
+    error.status = status;
     return error;
 }
 
-export function sendError(res, error) {
+export function sendError(res, error, fallbackMessage = "Ошибка сервера", fallbackCode = "SERVER_ERROR") {
     return res.status(error?.status || 500).json({
         error: {
-            code: error?.code || "SERVER_ERROR",
-            message: error?.message || "Ошибка сервера",
+            code: error?.code || fallbackCode,
+            message: error?.message || fallbackMessage,
         },
     });
 }

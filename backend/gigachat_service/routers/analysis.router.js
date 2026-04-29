@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { analysis, getAnalysisResultController } from "../controllers/analysis.controller.js";
+import { analysis, getResult } from "../controllers/analysis.controller.js";
 
 const router = Router();
 
 router.post("/analysis", analysis);
-router.get("/reading/:file", getAnalysisResultController);
+router.get("/reading/:file", getResult);
 
 export default router;

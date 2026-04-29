@@ -101,14 +101,14 @@ curl "http://localhost:3002/api/gigachat/reading/analysis_vk_domain_2025-04-30_2
 ```json
 {
   "error": {
-    "code": "FILE_NAME_REQUIRED",
+    "code": "VALIDATION_ERROR",
     "message": "Имя файла обязательно"
   }
 }
 ```
 
 Типовые коды:
-- `400` — ошибка валидации (`FILE_NAME_REQUIRED`, `INVALID_FILE_NAME`, `RESULT_FILE_REQUIRED`)
+- `400` — ошибка валидации (`VALIDATION_ERROR`)
 - `500` — внутренняя ошибка (`SERVER_ERROR`, `CONFIG_ERROR`)
 - `502` — ошибка токена/доступа к GigaChat (`GIGACHAT_TOKEN_ERROR`, `GIGACHAT_EMPTY_TOKEN`)
 

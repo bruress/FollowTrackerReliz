@@ -1,6 +1,6 @@
-import { round, calcEngagementRate } from "../utils/math.util.js";
+import { round, calcEngagement } from "../utils/math.util.js";
 
-export function calculateNumericMetrics(posts) {
+export function calculateMetrics(posts) {
     const postsCount = posts.length;
     let engagementRateSum = 0;
     let totalLikes = 0;
@@ -8,12 +8,12 @@ export function calculateNumericMetrics(posts) {
     let totalViews = 0;
 
     for (const post of posts) {
-        const likes = post?.likes;
-        const comments = post?.comments;
-        const reposts = post?.reposts;
-        const views = post?.views;
+        const likes = post.likes;
+        const comments = post.comments;
+        const reposts = post.reposts;
+        const views = post.views;
 
-        const engagementRate = calcEngagementRate(likes, comments, reposts, views);
+        const engagementRate = calcEngagement(likes, comments, reposts, views);
 
         totalLikes += likes;
         totalReposts += reposts;
