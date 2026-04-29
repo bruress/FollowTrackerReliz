@@ -1,31 +1,28 @@
 services:
   db:
-    env_file:
-      - ./backend/auth_service/.env.production
     image: postgres:18-alpine
     restart: always
-    container_name: pg_db_auth
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
+    container_name: db
+    env_file:
+      - ./backend/db/.env.production
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/auth_service/migrations:/docker-entrypoint-initdb.d
+      - ./backend/db/init_all.sql:/docker-entrypoint-initdb.d/init_all.sql:ro
+
   auth_service:
-    env_file: 
+    env_file:
       - ./backend/auth_service/.env.production
     container_name: auth_service
     restart: always
-    build: 
+    build:
       context: ./backend/auth_service
     ports:
       - "3001:3001"
     depends_on:
       - db
+
   parser_service:
     env_file:
       - ./backend/parser_service/.env.production
@@ -35,14 +32,42 @@ services:
       context: ./backend/parser_service
     ports:
       - "3003:3003"
+    depends_on:
+      - db
+
+  history_service:
+    env_file:
+      - ./backend/history_service/.env.production
+    container_name: history_service
+    restart: always
+    build:
+      context: ./backend/history_service
+    ports:
+      - "3004:3004"
+    depends_on:
+      - db
+
+  gigachat_service:
+    env_file:
+      - ./backend/gigachat_service/.env.production
+    container_name: gigachat_service
+    restart: always
+    build:
+      context: ./backend/gigachat_service
+    ports:
+      - "3002:3002"
+    depends_on:
+      - db
+
   frontend:
     container_name: frontend
     env_file:
       - ./frontend/.env.production
-    build: 
+    build:
       context: ./frontend/
     restart: always
     ports:
       - "3080:8080"
+
 volumes:
-  postgres_data: 
+  postgres_data:

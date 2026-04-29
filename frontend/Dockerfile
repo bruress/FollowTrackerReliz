@@ -1,5 +1,5 @@
 # скачиваем лайт версию node и присваиваем переменную builder
-FROM node:25-alpine as builder
+FROM node:25-alpine AS builder
 # созадем рабочую папку /app и сразу же в нее заходим
 WORKDIR /app
 # копируем первым делом все package.json для установки зависимостей
@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 # скачиваем лайт версию nginx и присваиваем переменную runner
 # для того, чтобы фронт мало весил и отображался статично
-FROM nginx:alpine as runner
+FROM nginx:alpine AS runner
 # копируем конфиг nginx в папку для конфигов
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 # переходим в папку для показа веб-страницы в браузере
