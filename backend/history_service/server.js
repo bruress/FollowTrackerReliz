@@ -12,5 +12,5 @@ app.use(express.json());
 app.use("/api/history", historyRouter);
 
 app.listen(PORT, () => {
-    console.log(`Server listining on port ${PORT}`);
+    console.log(`history_service: сервер запущен на порту ${PORT}`);
 });
