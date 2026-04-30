@@ -20,7 +20,7 @@ class WallAnalytic {
         const batchCount = 5;
         let commentsByPostId = {};
 
-        if (includeComments && postIds.length > 0) {
+        if (postIds.length > 0) {
             // делаем один execute-запрос и получаем комментарии сразу по всем постам
             commentsByPostId = await this.vkAPI.getWallComments(baseOwnerId, postIds, batchCount);
         }
@@ -56,7 +56,7 @@ class WallAnalytic {
             const postDate = new Date(post.date*1000).toISOString().slice(0, 10);
 
             // собираем все данные вместе
-            preparedPosts.push({
+            const preparedPost = {
                 id: post.id,
                 date: postDate,
                 text: post.text ?? "",
@@ -65,8 +65,11 @@ class WallAnalytic {
                 reposts: post.reposts?.count ?? 0,
                 views: post.views?.count ?? 0,
                 isAd: Boolean(post.marked_as_ads),
-                topComments,
-            });
+            };
+            if (includeComments) {
+                preparedPost.topComments = topComments;
+            }
+            preparedPosts.push(preparedPost);
         }
         return preparedPosts;
     }

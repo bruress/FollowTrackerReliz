@@ -85,7 +85,7 @@ Response `200`:
 ### `POST /deleteToken`
 Удаление токена пользователя.
 
-### `GET /statusToken`
+### `POST /statusToken`
 Проверка наличия токена пользователя.
 
 Response `200`:
@@ -106,7 +106,7 @@ Request:
   "domainId": "domain",
   "from": "2026-01-01",
   "to": "2026-01-31",
-  "flagParsingYear": false,
+  "flagParsingMonth": true,
   "flagAllowComments": false
 }
 ```
@@ -121,12 +121,12 @@ Response `200`:
 ## Валидация
 - `domainId`: обязательное поле
 - `from`, `to`: формат `YYYY-MM-DD`
-- `flagParsingYear`: `boolean` (если передан)
+- `flagParsingMonth`: `boolean` (если передан)
 - `flagAllowComments`: `boolean` (если передан, по умолчанию `false`)
 - `expires_in`: целое число в секундах, больше 0
 - диапазон дат:
-  - без `flagParsingYear`: до 1 месяца
-  - с `flagParsingYear=true`: до 1 года
+  - `flagParsingMonth=true` (или не передан) — до 1 месяца
+  - `flagParsingMonth=false` — до 2 недель
 
 ## Формат ошибки
 ```json

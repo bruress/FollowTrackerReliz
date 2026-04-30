@@ -6,6 +6,7 @@
 - Запуск анализа входного JSON-файла из `parser_service/data`
 - Расчет числовых метрик по постам
 - AI-анализ постов через GigaChat
+- Переиспользование уже сохраненных результатов анализа по `domain` и диапазону дат
 - Сохранение результата в `gigachat_service/data/*.json`
 - Чтение сохраненного результата по имени файла
 
@@ -68,7 +69,7 @@ docker run --env-file .env -p 3002:3002 \
 Request:
 ```json
 {
-  "fileName": "vk_domain_2025-04-30_2026-04-29_year_1_comments_0.json"
+  "fileName": "vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json"
 }
 ```
 
@@ -76,8 +77,8 @@ Response `200`:
 ```json
 {
   "status": "success",
-  "input": "vk_domain_2025-04-30_2026-04-29_year_1_comments_0.json",
-  "outputFile": "analysis_vk_domain_2025-04-30_2026-04-29_year_1_comments_0.json",
+  "input": "vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json",
+  "outputFile": "analysis_vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json",
   "durationMs": 15234
 }
 ```
@@ -87,13 +88,13 @@ Response `200`:
 
 Пример:
 ```bash
-curl "http://localhost:3002/api/gigachat/reading/analysis_vk_domain_2025-04-30_2026-04-29_year_1_comments_0.json"
+curl "http://localhost:3002/api/gigachat/reading/analysis_vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json"
 ```
 
 ## Валидация
 - `fileName` обязателен для `POST /analysis`
 - имя входного файла должно соответствовать шаблону:
-  - `vk_<domain>_<from>_<to>_year_<0|1>_comments_<0|1>.json`
+  - `vk_<domain>_<from>_<to>_month_<0|1>_comments_<0|1>.json`
 - `file` обязателен для `GET /reading/:file`
 - чтение/запись файлов ограничено именем файла (через `path.basename`)
 

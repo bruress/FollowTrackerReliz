@@ -68,7 +68,7 @@ Request:
   "from_date": "2026-04-01",
   "to_date": "2026-04-30",
   "flag_comments": false,
-  "flag_year": false
+  "flag_month": true
 }
 ```
 
@@ -126,6 +126,14 @@ Request:
 }
 ```
 
+Response `200`:
+```json
+{
+  "message": "История успешно получена",
+  "history": {}
+}
+```
+
 ### `POST /update/:id`
 Обновление статуса записи истории.
 
@@ -134,20 +142,19 @@ Request:
 {
   "user_id": 1,
   "status": "failed",
-  "parser_file": "vk_domain_2026-04-01_2026-04-30_year_0_comments_0.json",
-  "analysis_file": "analysis_vk_domain_2026-04-01_2026-04-30_year_0_comments_0.json",
+  "parser_file": "vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json",
+  "analysis_file": "analysis_vk_domain_2026-04-01_2026-04-30_month_1_comments_0.json",
   "error": "Ошибка анализа"
 }
 ```
 
 ## Валидация
-- `user_id`: обязательный, положительное целое число
-- `id` в `:id`: обязательный, положительное целое число
+- `user_id`: обязательный
+- `id` в `:id`: обязательный
 - `status`: только `in_process`, `parsing`, `analysing`, `completed`, `failed`
-- `parser_file`, `analysis_file`: если переданы, должны быть строками
 - при `status = failed` поле `error` обязательно и должно быть непустой строкой
-- `page`: целое число, минимум `1`
-- `limit`: целое число от `1` до `100`
+- `from_date`/`to_date`: корректные даты, диапазон до 1 месяца
+- `page`, `limit`: обязательные поля для `/list`
 
 ## Формат ошибки
 ```json

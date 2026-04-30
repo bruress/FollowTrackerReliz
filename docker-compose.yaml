@@ -9,7 +9,6 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/db/init_all.sql:/docker-entrypoint-initdb.d/init_all.sql:ro
 
   auth_service:
     env_file:

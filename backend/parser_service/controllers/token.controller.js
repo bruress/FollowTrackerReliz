@@ -16,7 +16,7 @@ export const addToken = async (req, res) => {
         }
         // абсолютное время истечения в секундах
         const nowSec = Math.floor(Date.now()/1000);
-        const safeExpiresSec = Math.max(1, Math.floor(expiresSec) - 3600);
+        const safeExpiresSec = Math.max(1, expiresSec-3600);
         const expiresAtSec = nowSec+safeExpiresSec;
 
         await pool.query(

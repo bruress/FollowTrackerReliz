@@ -5,7 +5,7 @@ import { buildError } from "../utils/error.utils.js";
 const NUMBER_PATTERN = /^-?\d+$/;
 const GROUP_TYPES = new Set(["group", "page", "event"]);
 
-function throwVkError(method, vkError) {
+function throwVkError(vkError) {
     const errorCode = Number(vkError?.error_code);
     const errorMsg = vkError?.error_msg || "Ошибка VK API";
     // невалидный токен
@@ -49,7 +49,7 @@ class VKAPI extends API {
                 }
             });
             if (response.data.error) {
-                throwVkError(method, response.data.error);
+                throwVkError(response.data.error);
             }
             return response.data.response;
         } catch (error) {
@@ -57,7 +57,7 @@ class VKAPI extends API {
                 throw error;
             }
             if (error.response?.data?.error) {
-                throwVkError(method, error.response.data.error);
+                throwVkError(error.response.data.error);
             }
             throw buildError(`Сетевой сбой при запросе VK ${method}`, "SERVER_ERROR", 502);
         }
@@ -213,8 +213,7 @@ class VKAPI extends API {
         if (safePostIds.length === 0) {
             return {};
         }
-        const safeCount = Number(countComm);
-        const count = Math.max(1, Math.min(20, Number.isFinite(safeCount) ? safeCount : 20));
+        const count = Math.max(1, Math.min(20, Number(countComm) || 20));
         const batchSize = 20;
         const result = {};
         // execute-блок для батчевой загрузки комментариев по нескольким post_id

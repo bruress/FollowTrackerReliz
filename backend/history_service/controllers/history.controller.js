@@ -12,25 +12,38 @@ export const createHistory = async (req, res) => {
         if (!api || !userId || !domain || !toDate || !fromDate) {
             throw buildError("Пожалуйста заполните все поля", "VALIDATION_ERROR", 400);
         }
+        const from = new Date(fromDate);
+        const to = new Date(toDate);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw buildError("Некорректное значение даты", "VALIDATION_ERROR", 400);
+        }
+        if (to < from) {
+            throw buildError("Выберите корректный промежуток времени", "VALIDATION_ERROR", 400);
+        }
+        const periodMs = to.getTime()-from.getTime()+1;
+        const maxPeriodMs = 31*24*60*60*1000;
+        if (periodMs > maxPeriodMs) {
+            throw buildError("Диапазон дат не должен превышать 1 месяц", "VALIDATION_ERROR", 400);
+        }
 
         const flagComments = body.flag_comments === undefined ? false : body.flag_comments;
-        const flagYear = body.flag_year === undefined ? false : body.flag_year;
+        const flagMonth = body.flag_month === undefined ? true : body.flag_month;
 
         const result = await pool.query(`
-            INSERT INTO histories (user_id, domain, to_date, from_date, flag_comments, flag_year, api) 
+            INSERT INTO histories (user_id, domain, to_date, from_date, flag_comments, flag_month, api) 
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (user_id, domain, to_date, from_date, flag_comments, flag_year, api)
+            ON CONFLICT (user_id, domain, to_date, from_date, flag_comments, flag_month, api)
             DO NOTHING
             RETURNING *;
-        `, [userId, domain, toDate, fromDate, flagComments, flagYear, api]);
+        `, [userId, domain, toDate, fromDate, flagComments, flagMonth, api]);
     
         if (result.rowCount === 0) {
             const existingHistory = await pool.query(`
                 SELECT * FROM histories 
                 WHERE user_id = $1 AND domain = $2 AND to_date = $3 AND from_date = $4
-                AND flag_comments = $5 AND flag_year = $6 AND api = $7
+                AND flag_comments = $5 AND flag_month = $6 AND api = $7
                 LIMIT 1
-            `, [userId, domain, toDate, fromDate, flagComments, flagYear, api]);
+            `, [userId, domain, toDate, fromDate, flagComments, flagMonth, api]);
 
             return res.status(200).json({
                 message: "Такая история уже существует",
